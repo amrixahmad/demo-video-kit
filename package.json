@@ -1,6 +1,6 @@
 {
   "name": "demo-video-kit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Extract app demos into finished vertical videos with voiceover, speed-fit and captions",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

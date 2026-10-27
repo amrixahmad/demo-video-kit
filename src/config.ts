@@ -110,7 +110,7 @@ export function loadConfig(cwd: string = process.cwd()): ResolvedConfig {
         }
       : undefined,
     style: {
-      brandAss: userConfig.style?.brandAss || '&H00E5464F',
+      brandAss: userConfig.style?.brandAss || '&H00FFFFFF', // Neutral white
       captionBoxAss: userConfig.style?.captionBoxAss || '&H00111111',
       hookFont: userConfig.style?.hookFont || 'Arial',
       hookFontSize: userConfig.style?.hookFontSize || 76,
@@ -123,10 +123,10 @@ export function loadConfig(cwd: string = process.cwd()): ResolvedConfig {
     },
     voice: {
       model: userConfig.voice?.model || 'gemini-3.8-flash-tts',
-      voice: userConfig.voice?.voice || 'Ludo',
+      voice: userConfig.voice?.voice || 'Puck', // Neutral voice
       style:
         userConfig.voice?.style ||
-        'Friendly and educational, like a helpful teacher. Warm and clear, at a brisk, upbeat pace.',
+        'Clear, articulate, and engaging, speaking at a natural, brisk pace.',
       apiKey:
         userConfig.voice?.apiKey ||
         (() => resolveGeminiApiKey(cwd)),
