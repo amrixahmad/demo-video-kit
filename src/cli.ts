@@ -36,7 +36,7 @@ Usage:
   switch (command) {
     case 'doctor': {
       const ok = await runDoctor(config);
-      if (!ok) process.exit(1);
+      if (!ok) process.exitCode = 1;
       break;
     }
 
@@ -90,5 +90,5 @@ Usage:
 
 main().catch((err: any) => {
   console.error(`\nError: ${err.message || err}`);
-  process.exit(1);
+  process.exitCode = 1;
 });

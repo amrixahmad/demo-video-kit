@@ -1246,7 +1246,7 @@ Usage:
   switch (command) {
     case "doctor": {
       const ok = await runDoctor(config);
-      if (!ok) process.exit(1);
+      if (!ok) process.exitCode = 1;
       break;
     }
     case "login": {
@@ -1294,6 +1294,6 @@ Usage:
 main().catch((err) => {
   console.error(`
 Error: ${err.message || err}`);
-  process.exit(1);
+  process.exitCode = 1;
 });
 //# sourceMappingURL=cli.js.map
