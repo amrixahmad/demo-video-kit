@@ -66,9 +66,24 @@ function loadConfig(cwd = process.cwd()) {
       `Could not find demo-video.config.ts (or .js) in ${cwd}. Please create one.`
     );
   }
-  const jiti = (0, import_jiti.default)(cwd, { interopDefault: true });
-  const rawExport = jiti(configPath);
-  const userConfig = rawExport.default || rawExport;
+  let rawExport;
+  if (configPath.endsWith(".ts")) {
+    try {
+      require("sucrase/register/ts");
+      rawExport = require(configPath);
+    } catch {
+      const jiti = (0, import_jiti.default)(cwd, { interopDefault: true });
+      rawExport = jiti(configPath);
+    }
+  } else {
+    try {
+      rawExport = require(configPath);
+    } catch {
+      const jiti = (0, import_jiti.default)(cwd, { interopDefault: true });
+      rawExport = jiti(configPath);
+    }
+  }
+  const userConfig = rawExport?.default || rawExport;
   if (!userConfig || !userConfig.recorder || !userConfig.script) {
     throw new Error(
       `Invalid config in ${configPath}. Both "recorder" and "script" adapters must be defined.`

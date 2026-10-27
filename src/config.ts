@@ -63,9 +63,24 @@ export function loadConfig(cwd: string = process.cwd()): ResolvedConfig {
     );
   }
 
-  const jiti = createJiti(cwd, { interopDefault: true });
-  const rawExport = jiti(configPath);
-  const userConfig: DemoVideoConfig = rawExport.default || rawExport;
+  let rawExport: any;
+  if (configPath.endsWith('.ts')) {
+    try {
+      require('sucrase/register/ts');
+      rawExport = require(configPath);
+    } catch {
+      const jiti = createJiti(cwd, { interopDefault: true });
+      rawExport = jiti(configPath);
+    }
+  } else {
+    try {
+      rawExport = require(configPath);
+    } catch {
+      const jiti = createJiti(cwd, { interopDefault: true });
+      rawExport = jiti(configPath);
+    }
+  }
+  const userConfig: DemoVideoConfig = rawExport?.default || rawExport;
 
   if (!userConfig || !userConfig.recorder || !userConfig.script) {
     throw new Error(
