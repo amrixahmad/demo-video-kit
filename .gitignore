@@ -1,0 +1,6 @@
+node_modules/
+.auth/
+out/
+.demo-video/
+*.log
+.DS_Store

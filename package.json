@@ -1,0 +1,40 @@
+{
+  "name": "demo-video-kit",
+  "version": "0.1.0",
+  "description": "Extract app demos into finished vertical videos with voiceover, speed-fit and captions",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "demo-video": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "assets"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "prepare": "npm run build",
+    "test": "jest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.40.0",
+    "ai": "^7.0.154",
+    "dotenv": "^16.0.0",
+    "jiti": "^1.21.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "tsup": "^8.0.2",
+    "typescript": "^5.3.3"
+  },
+  "license": "MIT"
+}
