@@ -131,7 +131,7 @@ export interface ScriptConfig<TSlots = any> {
   /**
    * Zod schema for slot data extracted from the answer.
    */
-  schema: ZodType<TSlots>;
+  schema: ZodType<TSlots> | any;
 
   /**
    * Prompt builder given the target and the answer text.
