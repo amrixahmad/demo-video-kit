@@ -105,8 +105,7 @@ function loadConfig(cwd = process.cwd()) {
       refresh: userConfig.auth.refresh
     } : void 0,
     style: {
-      brandAss: userConfig.style?.brandAss || "&H00FFFFFF",
-      // Neutral white
+      brandAss: userConfig.style?.brandAss || void 0,
       captionBoxAss: userConfig.style?.captionBoxAss || "&H00111111",
       hookFont: userConfig.style?.hookFont || "Arial",
       hookFontSize: userConfig.style?.hookFontSize || 76,
@@ -647,12 +646,68 @@ var assTime = (t) => {
   return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(cs % 100).padStart(2, "0")}`;
 };
 var assText = (text) => text.replace(/[{}\\]/g, "").trim();
+function isNearWhite(color) {
+  if (!color) return false;
+  const clean = color.trim().toLowerCase();
+  if (clean === "white") return true;
+  const hex = clean.replace(/^[&#h]+|&$/g, "");
+  const isWebHex = color.trim().startsWith("#");
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  if (hex.length === 3) {
+    r = parseInt(hex[0] + hex[0], 16);
+    g = parseInt(hex[1] + hex[1], 16);
+    b = parseInt(hex[2] + hex[2], 16);
+  } else if (hex.length === 6) {
+    if (isWebHex) {
+      r = parseInt(hex.slice(0, 2), 16);
+      g = parseInt(hex.slice(2, 4), 16);
+      b = parseInt(hex.slice(4, 6), 16);
+    } else {
+      b = parseInt(hex.slice(0, 2), 16);
+      g = parseInt(hex.slice(2, 4), 16);
+      r = parseInt(hex.slice(4, 6), 16);
+    }
+  } else if (hex.length === 8) {
+    if (isWebHex) {
+      r = parseInt(hex.slice(0, 2), 16);
+      g = parseInt(hex.slice(2, 4), 16);
+      b = parseInt(hex.slice(4, 6), 16);
+    } else {
+      b = parseInt(hex.slice(2, 4), 16);
+      g = parseInt(hex.slice(4, 6), 16);
+      r = parseInt(hex.slice(6, 8), 16);
+    }
+  } else {
+    return false;
+  }
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return false;
+  return r >= 220 && g >= 220 && b >= 220;
+}
 var buildAss = (lines, hookText, introEnd, style) => {
+  const videoWidth = style.videoWidth ?? 1080;
+  const videoHeight = style.videoHeight ?? 1920;
+  const hookFont = style.hookFont || "Arial";
+  const hookFontSize = style.hookFontSize ?? 76;
+  const captionFont = style.captionFont || "Arial";
+  const captionFontSize = style.captionFontSize ?? 70;
+  const captionBoxAss = style.captionBoxAss || "&H00111111";
+  let useBrand = false;
+  if (style.brandAss) {
+    if (isNearWhite(style.brandAss)) {
+      console.warn(
+        `[demo-video] Warning: style.brandAss (${style.brandAss}) is too close to white caption text and will be unreadable. Falling back to inverted highlight.`
+      );
+    } else {
+      useBrand = true;
+    }
+  }
   const header = [
     "[Script Info]",
     "ScriptType: v4.00+",
-    `PlayResX: ${style.videoWidth}`,
-    `PlayResY: ${style.videoHeight}`,
+    `PlayResX: ${videoWidth}`,
+    `PlayResY: ${videoHeight}`,
     "WrapStyle: 0",
     "",
     "[V4+ Styles]",
@@ -661,8 +716,8 @@ var buildAss = (lines, hookText, introEnd, style) => {
       "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR,",
       "MarginV, Encoding"
     ].join(" "),
-    `Style: Hook,${style.hookFont},${style.hookFontSize},&H00111111,&H00111111,&H00FFFFFF,&H00FFFFFF,-1,0,0,0,100,100,0,0,3,24,0,8,140,140,330,1`,
-    `Style: Caption,${style.captionFont},${style.captionFontSize},&H00FFFFFF,&H00FFFFFF,${style.captionBoxAss},${style.captionBoxAss},-1,0,0,0,100,100,0,0,3,18,0,2,80,80,520,1`,
+    `Style: Hook,${hookFont},${hookFontSize},&H00111111,&H00111111,&H00FFFFFF,&H00FFFFFF,-1,0,0,0,100,100,0,0,3,24,0,8,140,140,330,1`,
+    `Style: Caption,${captionFont},${captionFontSize},&H00FFFFFF,&H00FFFFFF,${captionBoxAss},${captionBoxAss},-1,0,0,0,100,100,0,0,3,18,0,2,80,80,520,1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"
@@ -672,9 +727,15 @@ var buildAss = (lines, hookText, introEnd, style) => {
   for (const line of lines) {
     for (const chunk of chunkWords(timeWords(line))) {
       chunk.forEach((word, i) => {
-        const text = chunk.map(
-          (w, j) => j === i ? `{\\3c${style.brandAss}&}${assText(w.text)}{\\3c${style.captionBoxAss}&}` : assText(w.text)
-        ).join(" ");
+        const text = chunk.map((w, j) => {
+          if (j !== i) {
+            return assText(w.text);
+          }
+          if (useBrand) {
+            return `{\\3c${style.brandAss}&}${assText(w.text)}{\\3c${captionBoxAss}&}`;
+          }
+          return `{\\3c&HFFFFFF&\\1c&H111111&}${assText(w.text)}{\\3c${captionBoxAss}&\\1c&HFFFFFF&}`;
+        }).join(" ");
         events.push(dialogue(word.start, word.end, "Caption", text));
       });
     }

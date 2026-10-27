@@ -153,6 +153,18 @@ interface StyleConfig {
     videoWidth?: number;
     videoHeight?: number;
 }
+interface ResolvedStyleConfig {
+    brandAss?: string;
+    captionBoxAss: string;
+    hookFont: string;
+    hookFontSize: number;
+    captionFont: string;
+    captionFontSize: number;
+    viewportWidth: number;
+    viewportHeight: number;
+    videoWidth: number;
+    videoHeight: number;
+}
 interface VoiceConfig {
     model?: string;
     voice?: string;
@@ -240,17 +252,24 @@ declare const layoutTimeline: (input: TimelineLayoutInput) => TimelineLayoutResu
 declare const remapEventTime: (t: number, start: number, end: number, speed: number) => number;
 
 /**
- * Builds an Advanced SubStation Alpha (.ass) subtitle file.
- * Lesson #7: libass draws BorderStyle 3 as a box behind each run of text, so changing
- * \3c mid-line recolours the box behind the spoken word. That is how the caption highlight works.
+ * Checks if a color is white or near-white (channels close to 255).
+ * Near-white colors cause caption highlights to be unreadable white-on-white.
  */
-declare const buildAss: (lines: Placed[], hookText: string, introEnd: number, style: Required<StyleConfig>) => string;
+declare function isNearWhite(color?: string): boolean;
+/**
+ * Builds an Advanced SubStation Alpha (.ass) subtitle file.
+ * libass draws BorderStyle 3 as a box behind each run of text.
+ * - When style.brandAss is set: recolours the box behind the spoken word (\3c<brandAss>&).
+ * - When style.brandAss is not set (default): inverts the spoken word with a white box
+ *   and dark text (\3c&HFFFFFF&\1c&H111111&), then restores both (\3c<captionBox>&\1c&HFFFFFF&).
+ */
+declare const buildAss: (lines: Placed[], hookText: string, introEnd: number, style: ResolvedStyleConfig | StyleConfig) => string;
 
 declare function defineConfig<TSlots = any, TSetupData = any>(config: DemoVideoConfig<TSlots, TSetupData>): DemoVideoConfig<TSlots, TSetupData>;
 interface ResolvedConfig extends DemoVideoConfig {
     app: Required<NonNullable<DemoVideoConfig['app']>>;
     auth?: NonNullable<DemoVideoConfig['auth']>;
-    style: Required<NonNullable<DemoVideoConfig['style']>>;
+    style: ResolvedStyleConfig;
     voice: Required<NonNullable<DemoVideoConfig['voice']>>;
 }
 /**
@@ -307,4 +326,4 @@ declare const speak: (text: string, outPath: string, options: SpeakOptions) => P
     seconds: number;
 }>;
 
-export { type AppConfig, type AuthConfig, type DemoVideoConfig, type HeardWord, type Placed, type RecorderConfig, type ResolvedConfig, type Script, type ScriptConfig, type ScriptLine, type Segment, type StyleConfig, type TimedWord, type Timeline, type TimelineEvent, type TimelineLayoutInput, type TimelineLayoutResult, type VoiceConfig, type Voiced, buildAss, chunkWords, clamp, defineConfig, extractPcm, findNewestRecording, layoutTimeline, loadConfig, normalise, placeSegment, remapEventTime, resolveGeminiApiKey, round, runDoctor, runEdit, runLogin, runProduce, runRecord, runScript, similarity, speak, timeWords, transcribe, ttsPrompt, wavHeader };
+export { type AppConfig, type AuthConfig, type DemoVideoConfig, type HeardWord, type Placed, type RecorderConfig, type ResolvedConfig, type ResolvedStyleConfig, type Script, type ScriptConfig, type ScriptLine, type Segment, type StyleConfig, type TimedWord, type Timeline, type TimelineEvent, type TimelineLayoutInput, type TimelineLayoutResult, type VoiceConfig, type Voiced, buildAss, chunkWords, clamp, defineConfig, extractPcm, findNewestRecording, isNearWhite, layoutTimeline, loadConfig, normalise, placeSegment, remapEventTime, resolveGeminiApiKey, round, runDoctor, runEdit, runLogin, runProduce, runRecord, runScript, similarity, speak, timeWords, transcribe, ttsPrompt, wavHeader };

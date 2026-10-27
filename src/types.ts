@@ -165,7 +165,7 @@ export interface ScriptConfig<TSlots = any> {
 }
 
 export interface StyleConfig {
-  brandAss?: string; // ASS colour format &HAABBGGRR (e.g. &H00E5464F)
+  brandAss?: string; // ASS colour format &HAABBGGRR (e.g. &H00E5464F). If unset, inverted highlight is used.
   captionBoxAss?: string; // ASS colour format &HAABBGGRR (default &H00111111)
   hookFont?: string; // default Arial
   hookFontSize?: number; // default 76
@@ -175,6 +175,19 @@ export interface StyleConfig {
   viewportHeight?: number; // default 960
   videoWidth?: number; // default 1080
   videoHeight?: number; // default 1920
+}
+
+export interface ResolvedStyleConfig {
+  brandAss?: string;
+  captionBoxAss: string;
+  hookFont: string;
+  hookFontSize: number;
+  captionFont: string;
+  captionFontSize: number;
+  viewportWidth: number;
+  viewportHeight: number;
+  videoWidth: number;
+  videoHeight: number;
 }
 
 export interface VoiceConfig {

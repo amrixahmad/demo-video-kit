@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import createJiti from 'jiti';
 import { join, resolve } from 'path';
-import type { DemoVideoConfig } from './types';
+import type { DemoVideoConfig, ResolvedStyleConfig } from './types';
 
 export function defineConfig<TSlots = any, TSetupData = any>(
   config: DemoVideoConfig<TSlots, TSetupData>
@@ -12,7 +12,7 @@ export function defineConfig<TSlots = any, TSetupData = any>(
 export interface ResolvedConfig extends DemoVideoConfig {
   app: Required<NonNullable<DemoVideoConfig['app']>>;
   auth?: NonNullable<DemoVideoConfig['auth']>;
-  style: Required<NonNullable<DemoVideoConfig['style']>>;
+  style: ResolvedStyleConfig;
   voice: Required<NonNullable<DemoVideoConfig['voice']>>;
 }
 
@@ -110,7 +110,7 @@ export function loadConfig(cwd: string = process.cwd()): ResolvedConfig {
         }
       : undefined,
     style: {
-      brandAss: userConfig.style?.brandAss || '&H00FFFFFF', // Neutral white
+      brandAss: userConfig.style?.brandAss || undefined,
       captionBoxAss: userConfig.style?.captionBoxAss || '&H00111111',
       hookFont: userConfig.style?.hookFont || 'Arial',
       hookFontSize: userConfig.style?.hookFontSize || 76,

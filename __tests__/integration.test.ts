@@ -169,4 +169,109 @@ describe('Integration test (offline render)', () => {
     const actualDuration = parseFloat(probe.stdout.trim());
     expect(Math.abs(actualDuration - produceJson.total)).toBeLessThanOrEqual(0.5);
   });
+
+  it('renders video with default inverted captions (no brandAss) and verifies frame readability', async () => {
+    // Config without brandAss (default style)
+    const config: ResolvedConfig = {
+      app: {
+        baseUrl: 'http://localhost:3000',
+        outDir,
+        authDir: join(testDir, '.auth'),
+        hideDevCss: '',
+      },
+      style: {
+        captionBoxAss: '&H00111111',
+        hookFont: 'Arial',
+        hookFontSize: 76,
+        captionFont: 'Arial',
+        captionFontSize: 70,
+        viewportWidth: 540,
+        viewportHeight: 960,
+        videoWidth: 1080,
+        videoHeight: 1920,
+      },
+      voice: {
+        model: 'gemini-3.8-flash-tts',
+        voice: 'Ludo',
+        style: 'Test style',
+        apiKey: 'fake-key',
+      },
+      recorder: {} as any,
+      script: {} as any,
+    };
+
+    const videoPath = await runProduce(config, recordFolder);
+    expect(existsSync(videoPath)).toBe(true);
+
+    // Verify captions.ass contains inverted highlight
+    const assContent = require('fs').readFileSync(join(recordFolder, 'captions.ass'), 'utf8');
+    expect(assContent).toContain('{\\3c&HFFFFFF&\\1c&H111111&}');
+    expect(assContent).toContain('{\\3c&H00111111&\\1c&HFFFFFF&}');
+
+    // Extract a frame mid-caption (e.g. at 0.3s when intro line first word is highlighted)
+    const framePath = join(recordFolder, 'frame_mid_caption.png');
+    const rawFramePath = join(recordFolder, 'frame_mid_caption.raw');
+
+    const extract = spawnSync(
+      'ffmpeg',
+      [
+        '-y',
+        '-ss',
+        '0.3',
+        '-i',
+        videoPath,
+        '-vframes',
+        '1',
+        framePath,
+      ],
+      { encoding: 'utf8' }
+    );
+    expect(extract.status).toBe(0);
+    expect(existsSync(framePath)).toBe(true);
+
+    // Extract raw RGB pixels to verify both white box and dark text are rendered
+    const extractRaw = spawnSync(
+      'ffmpeg',
+      [
+        '-y',
+        '-ss',
+        '0.3',
+        '-i',
+        videoPath,
+        '-vframes',
+        '1',
+        '-f',
+        'rawvideo',
+        '-pix_fmt',
+        'rgb24',
+        rawFramePath,
+      ],
+      { encoding: 'utf8' }
+    );
+    expect(extractRaw.status).toBe(0);
+    expect(existsSync(rawFramePath)).toBe(true);
+
+    const rawBuffer = require('fs').readFileSync(rawFramePath);
+    let whitePixels = 0;
+    let darkPixels = 0;
+
+    for (let i = 0; i < rawBuffer.length; i += 3) {
+      const r = rawBuffer[i];
+      const g = rawBuffer[i + 1];
+      const b = rawBuffer[i + 2];
+
+      // White box pixels
+      if (r > 220 && g > 220 && b > 220) {
+        whitePixels++;
+      }
+      // Dark text pixels (within the white box and caption area)
+      if (r < 50 && g < 50 && b < 50) {
+        darkPixels++;
+      }
+    }
+
+    // Both the white background box and dark text pixels must be rendered on the frame
+    expect(whitePixels).toBeGreaterThan(100);
+    expect(darkPixels).toBeGreaterThan(100);
+  });
 });

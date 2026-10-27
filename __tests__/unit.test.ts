@@ -1,3 +1,4 @@
+import { buildAss, isNearWhite } from '../src/ass';
 import {
   chunkWords,
   layoutTimeline,
@@ -224,5 +225,98 @@ describe('template builder', () => {
     expect(lines[2]).toEqual({ id: 'finding1-wrong', segment: 'answer', text: 'Broken navigation link' });
     expect(lines[3]).toEqual({ id: 'finding1-should', segment: 'answer', text: 'It should link to the homepage' });
     expect(lines[6]).toEqual({ id: 'outro', segment: 'outro', text: 'Found 3 issues in total.' });
+  });
+});
+
+describe('isNearWhite color detection', () => {
+  it('correctly identifies white and near-white colors', () => {
+    expect(isNearWhite('&H00FFFFFF')).toBe(true);
+    expect(isNearWhite('&HFFFFFF')).toBe(true);
+    expect(isNearWhite('&H00FFFFFF&')).toBe(true);
+    expect(isNearWhite('#FFFFFF')).toBe(true);
+    expect(isNearWhite('#fff')).toBe(true);
+    expect(isNearWhite('white')).toBe(true);
+    expect(isNearWhite('&H00F0F0F0')).toBe(true);
+    expect(isNearWhite('&H00EEEEEE')).toBe(true);
+  });
+
+  it('correctly identifies colored or dark colors as not near-white', () => {
+    expect(isNearWhite('&H00E5464F')).toBe(false); // SapuSEO indigo
+    expect(isNearWhite('&H00111111')).toBe(false); // Caption box dark grey
+    expect(isNearWhite('#000000')).toBe(false);
+    expect(isNearWhite('&H000000FF')).toBe(false); // Red
+    expect(isNearWhite('&H0000FFFF')).toBe(false); // Yellow
+    expect(isNearWhite(undefined)).toBe(false);
+    expect(isNearWhite('')).toBe(false);
+  });
+});
+
+describe('buildAss caption builder', () => {
+  const sampleLines: Placed[] = [
+    {
+      id: 'l1',
+      segment: 'intro',
+      text: 'Hello world',
+      seconds: 2.0,
+      file: 'voice/l1.wav',
+      start: 0,
+      words: [
+        { word: 'Hello', start: 0, end: 0.8 },
+        { word: 'world', start: 0.9, end: 1.8 },
+      ],
+    },
+  ];
+
+  it('inverts spoken word highlight when brandAss is not set (default)', () => {
+    const ass = buildAss(sampleLines, 'Hook Header', 1.0, {
+      captionBoxAss: '&H00111111',
+    });
+
+    // Check style definition
+    expect(ass).toContain('Style: Caption,Arial,70,&H00FFFFFF,&H00FFFFFF,&H00111111,&H00111111,-1,0,0,0,100,100,0,0,3,18,0,2,80,80,520,1');
+
+    // First word 'Hello' highlighted:
+    // White box (\3c&HFFFFFF&) with dark text (\1c&H111111&),
+    // restored to caption box (\3c&H00111111&) and white text (\1c&HFFFFFF&)
+    expect(ass).toContain('{\\3c&HFFFFFF&\\1c&H111111&}Hello{\\3c&H00111111&\\1c&HFFFFFF&} world');
+
+    // Second word 'world' highlighted:
+    expect(ass).toContain('Hello {\\3c&HFFFFFF&\\1c&H111111&}world{\\3c&H00111111&\\1c&HFFFFFF&}');
+  });
+
+  it('recolours only the background box when brandAss is set', () => {
+    const ass = buildAss(sampleLines, 'Hook Header', 1.0, {
+      brandAss: '&H00E5464F',
+      captionBoxAss: '&H00111111',
+    });
+
+    // Highlighted run only changes \3c to brand colour and restores \3c to captionBoxAss.
+    // It must NOT alter \1c.
+    expect(ass).toContain('{\\3c&H00E5464F&}Hello{\\3c&H00111111&} world');
+    expect(ass).toContain('Hello {\\3c&H00E5464F&}world{\\3c&H00111111&}');
+
+    // Dialogue events should not contain \1c overrides
+    const dialogueLines = ass.split('\n').filter((l) => l.startsWith('Dialogue:') && l.includes('Caption'));
+    for (const d of dialogueLines) {
+      expect(d).not.toContain('\\1c');
+    }
+  });
+
+  it('warns and falls back to inverted highlight if brandAss is near-white', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const ass = buildAss(sampleLines, 'Hook Header', 1.0, {
+      brandAss: '&H00FFFFFF',
+      captionBoxAss: '&H00111111',
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Warning: style.brandAss (&H00FFFFFF) is too close to white caption text')
+    );
+
+    // Falls back to inverted highlight
+    expect(ass).toContain('{\\3c&HFFFFFF&\\1c&H111111&}Hello{\\3c&H00111111&\\1c&HFFFFFF&} world');
+
+    warnSpy.mockRestore();
   });
 });

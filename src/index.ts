@@ -1,4 +1,4 @@
-export { buildAss } from './ass';
+export { buildAss, isNearWhite } from './ass';
 export { defineConfig, loadConfig, resolveGeminiApiKey, type ResolvedConfig } from './config';
 export { runDoctor } from './doctor';
 export { runEdit } from './edit';
@@ -34,6 +34,7 @@ export type {
   ScriptLine,
   Segment,
   StyleConfig,
+  ResolvedStyleConfig,
   Timeline,
   TimelineEvent,
   VoiceConfig,

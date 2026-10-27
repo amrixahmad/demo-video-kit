@@ -25,7 +25,7 @@ npx demo-video doctor
 Add `demo-video-kit` and your preferred AI/schema libraries to `devDependencies`:
 
 ```bash
-npm install -D github:amrixahmad/demo-video-kit#v0.1.1 zod @playwright/test
+npm install -D github:amrixahmad/demo-video-kit#v0.1.2 zod @playwright/test
 ```
 *(Plus your project's chosen AI SDK provider, e.g. `@ai-sdk/google` and `ai`).*
 
@@ -168,10 +168,14 @@ For apps behind a login:
 - `saveSlots(slots)` (Optional): Custom slot fields to save into `script.json` (e.g. full issue lists, ratings, entity IDs) alongside the standard fields (`site`, `onScreen`, `lines`, `postCaption`, `hashtags`).
 
 ### Section E: `style` (Optional)
-- `brandAss`: Subtitle highlight color in ASS format (`&HAABBGGRR`). Default: `&H00FFFFFF` (white).
-- `captionBoxAss`: Subtitle background box color. Default: `&H00111111` (dark grey/black).
+- `brandAss`: Spoken word highlight color in ASS format (`&HAABBGGRR`, e.g. SapuSEO's indigo `&H00E5464F`).
+  - **Inverted Highlight (Default)**: When `brandAss` is omitted / not set, the spoken word is highlighted by inversion — a white box (`\3c&HFFFFFF&`) with dark text (`\1c&H111111&`), restoring to the dark caption box with white text (`\3c<captionBoxAss>&\1c&HFFFFFF&`) for subsequent words. This requires no brand configuration, looks neutral, and guarantees high contrast and readability on any video.
+  - **Brand Color Highlight**: When `brandAss` is configured with a custom color, the spoken word's background box is recoloured to the brand color with white text (`\3c<brandAss>&`). If `brandAss` is set to white or near-white, demo-video-kit automatically logs a warning and falls back to inverted highlight to prevent unreadable white-on-white text.
+- `captionBoxAss`: Subtitle background box color in ASS format (`&HAABBGGRR`). Default: `&H00111111` (dark grey/black).
 - `hookFont`, `hookFontSize`: Font name and size for top sticker (default Arial, 76).
 - `captionFont`, `captionFontSize`: Font name and size for captions (default Arial, 70).
+- `viewportWidth`, `viewportHeight`: Recording viewport dimensions (default 540x960).
+- `videoWidth`, `videoHeight`: Output video dimensions (default 1080x1920).
 
 ### Section F: `voice` (Optional)
 - `model`: Gemini TTS model (default: `gemini-3.8-flash-tts`).
