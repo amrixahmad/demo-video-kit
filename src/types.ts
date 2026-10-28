@@ -59,6 +59,12 @@ export interface AppConfig {
    * Additional CSS injected into the page to hide dev tools / overlays on camera.
    */
   hideDevCss?: string;
+
+  /**
+   * Seconds of the target site itself shown before the app appears (default 0, off).
+   * Captured off-camera from the target domain as `site.png`.
+   */
+  siteShot?: number;
 }
 
 export interface AuthConfig {
@@ -167,6 +173,7 @@ export interface ScriptConfig<TSlots = any> {
 export interface StyleConfig {
   brandAss?: string; // ASS colour format &HAABBGGRR (e.g. &H00E5464F). If unset, inverted highlight is used.
   captionBoxAss?: string; // ASS colour format &HAABBGGRR (default &H00111111)
+  hookBoxAss?: string; // ASS colour of the box behind the hook text (default &H00FFFFFF, white)
   hookFont?: string; // default Arial
   hookFontSize?: number; // default 76
   captionFont?: string; // default Arial
@@ -180,6 +187,7 @@ export interface StyleConfig {
 export interface ResolvedStyleConfig {
   brandAss?: string;
   captionBoxAss: string;
+  hookBoxAss: string;
   hookFont: string;
   hookFontSize: number;
   captionFont: string;

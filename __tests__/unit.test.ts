@@ -267,6 +267,18 @@ describe('buildAss caption builder', () => {
     },
   ];
 
+  it('defaults the hook box to white', () => {
+    const ass = buildAss(sampleLines, 'Hook Header', 1.0, {});
+
+    expect(ass).toContain('Style: Hook,Arial,76,&H00111111,&H00111111,&H00FFFFFF,&H00FFFFFF');
+  });
+
+  it('uses the configured hook box colour for the sticker', () => {
+    const ass = buildAss(sampleLines, 'Hook Header', 1.0, { hookBoxAss: '&H0000FFFF' });
+
+    expect(ass).toContain('Style: Hook,Arial,76,&H00111111,&H00111111,&H0000FFFF,&H0000FFFF');
+  });
+
   it('inverts spoken word highlight when brandAss is not set (default)', () => {
     const ass = buildAss(sampleLines, 'Hook Header', 1.0, {
       captionBoxAss: '&H00111111',

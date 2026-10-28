@@ -129,6 +129,7 @@ export default defineConfig<TSlots, TSetupData>({
 - `outDir`: Path where recordings, audio cache, and finished videos are stored (default: `.demo-video/out`).
 - `authDir`: Path where browser session storage states are saved (default: `.demo-video/.auth`).
 - `hideDevCss`: Extra CSS rules injected into the page during recording to hide development overlays (e.g. debug buttons, dev banners).
+- `siteShot`: Seconds of the target site itself shown before the app (default `0`, off). At record time the kit visits the target domain in its own unauthenticated context and saves `site.png`; at produce time that still covers the first seconds of the recording, which are the idle page after load. The voiceover, captions and total length do not change. A site that answers with an error, or blocks the browser, only costs the still.
 
 ### Section B: `auth` (Optional)
 For apps behind a login:
@@ -172,6 +173,7 @@ For apps behind a login:
   - **Inverted Highlight (Default)**: When `brandAss` is omitted / not set, the spoken word is highlighted by inversion — a white box (`\3c&HFFFFFF&`) with dark text (`\1c&H111111&`), restoring to the dark caption box with white text (`\3c<captionBoxAss>&\1c&HFFFFFF&`) for subsequent words. This requires no brand configuration, looks neutral, and guarantees high contrast and readability on any video.
   - **Brand Color Highlight**: When `brandAss` is configured with a custom color, the spoken word's background box is recoloured to the brand color with white text (`\3c<brandAss>&`). If `brandAss` is set to white or near-white, demo-video-kit automatically logs a warning and falls back to inverted highlight to prevent unreadable white-on-white text.
 - `captionBoxAss`: Subtitle background box color in ASS format (`&HAABBGGRR`). Default: `&H00111111` (dark grey/black).
+- `hookBoxAss`: Box colour behind the hook sticker, in ASS format (`&HAABBGGRR`). Default: `&H00FFFFFF` (white). Use `&H0000FFFF` for yellow, so the hook does not read like the caption boxes.
 - `hookFont`, `hookFontSize`: Font name and size for top sticker (default Arial, 76).
 - `captionFont`, `captionFontSize`: Font name and size for captions (default Arial, 70).
 - `viewportWidth`, `viewportHeight`: Recording viewport dimensions (default 540x960).

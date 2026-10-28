@@ -84,6 +84,7 @@ export const buildAss = (
   const captionFont = style.captionFont || 'Arial';
   const captionFontSize = style.captionFontSize ?? 70;
   const captionBoxAss = style.captionBoxAss || '&H00111111';
+  const hookBoxAss = style.hookBoxAss || '&H00FFFFFF';
 
   let useBrand = false;
   if (style.brandAss) {
@@ -109,7 +110,7 @@ export const buildAss = (
       'Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR,',
       'MarginV, Encoding',
     ].join(' '),
-    `Style: Hook,${hookFont},${hookFontSize},&H00111111,&H00111111,&H00FFFFFF,&H00FFFFFF,-1,0,0,0,100,100,0,0,3,24,0,8,140,140,330,1`,
+    `Style: Hook,${hookFont},${hookFontSize},&H00111111,&H00111111,${hookBoxAss},${hookBoxAss},-1,0,0,0,100,100,0,0,3,24,0,8,140,140,330,1`,
     `Style: Caption,${captionFont},${captionFontSize},&H00FFFFFF,&H00FFFFFF,${captionBoxAss},${captionBoxAss},-1,0,0,0,100,100,0,0,3,18,0,2,80,80,520,1`,
     '',
     '[Events]',

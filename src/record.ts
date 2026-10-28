@@ -1,4 +1,4 @@
-import { chromium } from '@playwright/test';
+import { chromium, type Browser } from '@playwright/test';
 import { spawnSync } from 'child_process';
 import { existsSync, mkdirSync, renameSync, writeFileSync } from 'fs';
 import { join } from 'path';
@@ -19,6 +19,65 @@ const timestamp = () =>
 const DEFAULT_HIDE_DEV_CSS = `
   nextjs-portal, button[aria-label*="React Query"], .tsqd-open-btn-container { display: none !important; }
 `;
+
+/**
+ * A plain desktop Chrome user agent. Some government sites answer Playwright's default
+ * headless UA with a WAF block page, so the shot (and its status) would be worthless.
+ */
+const desktopUserAgent = (version: string): string => {
+  const platform =
+    process.platform === 'win32'
+      ? 'Windows NT 10.0; Win64; x64'
+      : process.platform === 'darwin'
+        ? 'Macintosh; Intel Mac OS X 10_15_7'
+        : 'X11; Linux x86_64';
+  const major = version.split('.')[0] || '140';
+  return `Mozilla/5.0 (${platform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${major}.0.0.0 Safari/537.36`;
+};
+
+/**
+ * Grabs a still of the target site itself for the cold open (config.app.siteShot).
+ * Runs off-camera in its own unauthenticated context; a failure only costs the still.
+ */
+const captureSiteShot = async (
+  browser: Browser,
+  domain: string,
+  outDir: string,
+  shotSize: { width: number; height: number }
+): Promise<void> => {
+  const shotPath = join(outDir, 'site.png');
+  for (const url of [`https://${domain}`, `http://${domain}`]) {
+    // Laying the site out at the video's own pixel size keeps a desktop page complete
+    // instead of clipping a fixed-width layout to the app's narrow viewport.
+    const context = await browser.newContext({
+      viewport: shotSize,
+      deviceScaleFactor: 1,
+      colorScheme: 'light',
+      locale: 'en-MY',
+      userAgent: desktopUserAgent(browser.version()),
+    });
+    // Sites that block automation usually check navigator.webdriver first.
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    });
+    try {
+      const page = await context.newPage();
+      const response = await page.goto(url, { waitUntil: 'load', timeout: 30_000 });
+      if (!response || response.status() >= 400) {
+        throw new Error(`HTTP ${response ? response.status() : 'no response'}`);
+      }
+      await sleep(1500);
+      await page.screenshot({ path: shotPath, animations: 'disabled' });
+      console.log(`  captured the site shot from ${url}`);
+      return;
+    } catch (err: any) {
+      console.warn(`  could not capture the site shot from ${url}: ${err.message}`);
+    } finally {
+      await context.close().catch(() => {});
+    }
+  }
+  console.warn('  no site shot captured; the video will start on the app.');
+};
 
 export interface RecordOptions {
   keep?: boolean;
@@ -81,6 +140,10 @@ export async function runRecord(
   const setupResult = await config.recorder.setup(setupContext, domainName);
   const targetUrl = setupResult.url;
   const setupData = setupResult.data;
+
+  if (config.app.siteShot > 0) {
+    await captureSiteShot(browser, domainName, outDir, videoSize);
+  }
 
   // Refresh auth again if needed right before camera starts
   if (config.auth?.refresh) {

@@ -78,6 +78,7 @@ A recording folder (default `.demo-video/out/<slug>-<timestamp>/`) contains:
 | `final.mp4` | `record` | Clean upscaled video (1080x1920) before audio and captions. |
 | `timeline.json` | `record` | Timestamps of lifecycle events (`page_ready`, `sent`, `step_done`, `answer_done`, `end`). |
 | `answer.txt` | `record` | Text output captured from the tool/agent run. |
+| `site.png` | `record` | Still of the target site for the cold open, when `app.siteShot` is set. |
 | `script.json` | `script` | JSON containing `site`, `onScreen`, `lines` (`id`, `segment`, `text`), `postCaption`, `hashtags`, and custom slot data. |
 | `captions.ass` | `produce` | Generated Advanced SubStation Alpha subtitles with word highlights. |
 | `voice/` | `produce` | Cached individual audio clips (`.wav`) for each script line. |
@@ -99,6 +100,7 @@ Each of these represents a hard-won fix from production debugging:
 6. **Env Precedence**: Stale shell environment variables broke production builds. The kit enforces that `.env` overrides shell variables for `GEMINI_API_KEY`.
 7. **libass Highlight Boxes**: `BorderStyle 3` in ASS draws an opaque background box behind text. Changing `\3c` mid-line recolors the box behind the spoken word, creating the word-by-word karaoke highlight.
 8. **ffmpeg Working Directory**: Running ffmpeg with the recording directory as `cwd` avoids Windows backslash escaping issues with the ASS subtitle filter.
+9. **Whisper Decoding**: `faster-whisper` decoded clip paths through PyAV's `av.open(metadata_errors=...)`, which newer PyAV releases dropped. Transcription then failed with a `TypeError`, `transcribe()` returned `null`, and the speech check quietly switched itself off — so a clip that read the director's notes aloud still shipped. The assets pipeline now decodes with ffmpeg and hands the model a float32 array, and a clip whose transcript disagrees is re-voiced (up to three attempts).
 
 ---
 

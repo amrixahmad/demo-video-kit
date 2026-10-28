@@ -118,10 +118,12 @@ describe('Integration test (offline render)', () => {
         outDir,
         authDir: join(testDir, '.auth'),
         hideDevCss: '',
+        siteShot: 0,
       },
       style: {
         brandAss: '&H00E5464F',
         captionBoxAss: '&H00111111',
+        hookBoxAss: '&H00FFFFFF',
         hookFont: 'Arial',
         hookFontSize: 76,
         captionFont: 'Arial',
@@ -178,9 +180,11 @@ describe('Integration test (offline render)', () => {
         outDir,
         authDir: join(testDir, '.auth'),
         hideDevCss: '',
+        siteShot: 0,
       },
       style: {
         captionBoxAss: '&H00111111',
+        hookBoxAss: '&H00FFFFFF',
         hookFont: 'Arial',
         hookFontSize: 76,
         captionFont: 'Arial',
@@ -273,5 +277,77 @@ describe('Integration test (offline render)', () => {
     // Both the white background box and dark text pixels must be rendered on the frame
     expect(whitePixels).toBeGreaterThan(100);
     expect(darkPixels).toBeGreaterThan(100);
+  });
+
+  it('opens on the captured site still without changing the length', async () => {
+    const config: ResolvedConfig = {
+      app: {
+        baseUrl: 'http://localhost:3000',
+        outDir,
+        authDir: join(testDir, '.auth'),
+        hideDevCss: '',
+        siteShot: 0.5,
+      },
+      style: {
+        brandAss: '&H00E5464F',
+        captionBoxAss: '&H00111111',
+        hookBoxAss: '&H00FFFFFF',
+        hookFont: 'Arial',
+        hookFontSize: 76,
+        captionFont: 'Arial',
+        captionFontSize: 70,
+        viewportWidth: 540,
+        viewportHeight: 960,
+        videoWidth: 1080,
+        videoHeight: 1920,
+      },
+      voice: {
+        model: 'gemini-3.8-flash-tts',
+        voice: 'Ludo',
+        style: 'Test style',
+        apiKey: 'fake-key',
+      },
+      recorder: {} as any,
+      script: {} as any,
+    };
+
+    // Baseline without site.png: no cold open, and that run is the length to match.
+    const sitePng = join(recordFolder, 'site.png');
+    rmSync(sitePng, { force: true });
+    await runProduce(config, recordFolder);
+    const withoutShot = JSON.parse(
+      require('fs').readFileSync(join(recordFolder, 'produce.json'), 'utf8')
+    ).total;
+
+    const made = spawnSync(
+      'ffmpeg',
+      ['-y', '-f', 'lavfi', '-i', 'color=c=yellow:s=1080x1920:d=1', '-frames:v', '1', sitePng],
+      { encoding: 'utf8' }
+    );
+    expect(made.status).toBe(0);
+
+    const videoPath = await runProduce(config, recordFolder);
+    const produced = JSON.parse(
+      require('fs').readFileSync(join(recordFolder, 'produce.json'), 'utf8')
+    );
+
+    expect(produced.siteShot.seconds).toBe(0.5);
+    expect(produced.total).toBeCloseTo(withoutShot, 1);
+
+    // The first frame is the still, not the app: sample the middle pixel, which the
+    // top-aligned hook sticker does not cover.
+    const rawPath = join(testDir, 'site-shot-frame.rgb');
+    const grab = spawnSync(
+      'ffmpeg',
+      ['-y', '-ss', '0.1', '-i', videoPath, '-vframes', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', rawPath],
+      { encoding: 'utf8' }
+    );
+    expect(grab.status).toBe(0);
+
+    const raw = require('fs').readFileSync(rawPath);
+    const middle = (960 * 1080 + 540) * 3;
+    expect(raw[middle]).toBeGreaterThan(150); // red
+    expect(raw[middle + 1]).toBeGreaterThan(150); // green
+    expect(raw[middle + 2]).toBeLessThan(120); // blue
   });
 });

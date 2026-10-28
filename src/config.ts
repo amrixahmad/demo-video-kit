@@ -101,6 +101,7 @@ export function loadConfig(cwd: string = process.cwd()): ResolvedConfig {
       outDir: resolve(cwd, outDir),
       authDir: resolve(cwd, authDir),
       hideDevCss: userConfig.app?.hideDevCss || '',
+      siteShot: userConfig.app?.siteShot ?? 0,
     },
     auth: userConfig.auth
       ? {
@@ -112,6 +113,7 @@ export function loadConfig(cwd: string = process.cwd()): ResolvedConfig {
     style: {
       brandAss: userConfig.style?.brandAss || undefined,
       captionBoxAss: userConfig.style?.captionBoxAss || '&H00111111',
+      hookBoxAss: userConfig.style?.hookBoxAss || '&H00FFFFFF',
       hookFont: userConfig.style?.hookFont || 'Arial',
       hookFontSize: userConfig.style?.hookFontSize || 76,
       captionFont: userConfig.style?.captionFont || 'Arial',

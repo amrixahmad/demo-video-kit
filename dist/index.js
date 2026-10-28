@@ -235,6 +235,7 @@ var buildAss = (lines, hookText, introEnd, style) => {
   const captionFont = style.captionFont || "Arial";
   const captionFontSize = style.captionFontSize ?? 70;
   const captionBoxAss = style.captionBoxAss || "&H00111111";
+  const hookBoxAss = style.hookBoxAss || "&H00FFFFFF";
   let useBrand = false;
   if (style.brandAss) {
     if (isNearWhite(style.brandAss)) {
@@ -258,7 +259,7 @@ var buildAss = (lines, hookText, introEnd, style) => {
       "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR,",
       "MarginV, Encoding"
     ].join(" "),
-    `Style: Hook,${hookFont},${hookFontSize},&H00111111,&H00111111,&H00FFFFFF,&H00FFFFFF,-1,0,0,0,100,100,0,0,3,24,0,8,140,140,330,1`,
+    `Style: Hook,${hookFont},${hookFontSize},&H00111111,&H00111111,${hookBoxAss},${hookBoxAss},-1,0,0,0,100,100,0,0,3,24,0,8,140,140,330,1`,
     `Style: Caption,${captionFont},${captionFontSize},&H00FFFFFF,&H00FFFFFF,${captionBoxAss},${captionBoxAss},-1,0,0,0,100,100,0,0,3,18,0,2,80,80,520,1`,
     "",
     "[Events]",
@@ -360,7 +361,8 @@ function loadConfig(cwd = process.cwd()) {
       baseUrl: process.env.DEMO_BASE_URL || userConfig.app?.baseUrl || "http://localhost:3000",
       outDir: (0, import_path.resolve)(cwd, outDir),
       authDir: (0, import_path.resolve)(cwd, authDir),
-      hideDevCss: userConfig.app?.hideDevCss || ""
+      hideDevCss: userConfig.app?.hideDevCss || "",
+      siteShot: userConfig.app?.siteShot ?? 0
     },
     auth: userConfig.auth ? {
       loginPath: userConfig.auth.loginPath || "/login",
@@ -370,6 +372,7 @@ function loadConfig(cwd = process.cwd()) {
     style: {
       brandAss: userConfig.style?.brandAss || void 0,
       captionBoxAss: userConfig.style?.captionBoxAss || "&H00111111",
+      hookBoxAss: userConfig.style?.hookBoxAss || "&H00FFFFFF",
       hookFont: userConfig.style?.hookFont || "Arial",
       hookFontSize: userConfig.style?.hookFontSize || 76,
       captionFont: userConfig.style?.captionFont || "Arial",
@@ -1022,27 +1025,42 @@ async function runProduce(config, folderArg) {
     end,
     voiced
   });
+  const shotSeconds = config.app.siteShot > 0 && (0, import_fs8.existsSync)((0, import_path7.join)(folder, "site.png")) ? Math.min(config.app.siteShot, sent) : 0;
   const assContent = buildAss(layout.placed, script.onScreen, layout.introOut, config.style);
   (0, import_fs8.writeFileSync)((0, import_path7.join)(folder, "captions.ass"), assContent);
+  const upscale = `scale=${config.style.videoWidth}:${config.style.videoHeight}:flags=lanczos,setsar=1`;
   const videoFilter = [
-    `[0:v]trim=start=0:end=${sent},setpts=PTS-STARTPTS,fps=30,setsar=1,tpad=stop_mode=clone:stop_duration=${round(layout.introHold)}[intro]`,
-    `[0:v]trim=start=${sent}:end=${answerDone},setpts=(PTS-STARTPTS)/${round(layout.workSpeed)},fps=30,setsar=1[work]`,
+    `[0:v]trim=start=${shotSeconds}:end=${sent},setpts=PTS-STARTPTS,fps=30,setsar=1,tpad=stop_mode=clone:stop_duration=${round(layout.introHold)},${upscale}[intro]`,
+    `[0:v]trim=start=${sent}:end=${answerDone},setpts=(PTS-STARTPTS)/${round(layout.workSpeed)},fps=30,setsar=1,${upscale}[work]`,
     [
       `[0:v]trim=start=${answerDone}:end=${end},setpts=(PTS-STARTPTS)/${round(layout.answerSpeed)},fps=30,setsar=1,`,
-      `tpad=stop_mode=clone:stop_duration=${round(layout.answerHold)}[answer]`
-    ].join(""),
-    [
-      "[intro][work][answer]concat=n=3:v=1:a=0,",
-      `scale=${config.style.videoWidth}:${config.style.videoHeight}:flags=lanczos,unsharp=5:5:0.6,ass=captions.ass[v]`
+      `tpad=stop_mode=clone:stop_duration=${round(layout.answerHold)},${upscale}[answer]`
     ].join("")
   ];
+  if (shotSeconds) {
+    const shotInput = 1 + layout.placed.length;
+    videoFilter.unshift(
+      `[${shotInput}:v]${upscale},fps=30,trim=duration=${shotSeconds},setpts=PTS-STARTPTS[shot]`
+    );
+    videoFilter.push(
+      "[shot][intro][work][answer]concat=n=4:v=1:a=0,unsharp=5:5:0.6,ass=captions.ass[v]"
+    );
+  } else {
+    videoFilter.push("[intro][work][answer]concat=n=3:v=1:a=0,unsharp=5:5:0.6,ass=captions.ass[v]");
+  }
   const audioFilter = layout.placed.map(
     (line, i) => `[${i + 1}:a]afade=t=in:d=0.01,afade=t=out:st=${Math.max(0, line.seconds - 0.01).toFixed(3)}:d=0.01,adelay=${Math.round(line.start * 1e3)}:all=1[a${i}]`
   );
   audioFilter.push(
     `${layout.placed.map((_, i) => `[a${i}]`).join("")}amix=inputs=${layout.placed.length}:normalize=0:duration=longest,apad[a]`
   );
-  const args = ["-v", "error", "-y", "-i", "raw.webm"].concat(...layout.placed.map((line) => ["-i", line.file])).concat([
+  const inputs = ["-v", "error", "-y", "-i", "raw.webm"].concat(
+    ...layout.placed.map((line) => ["-i", line.file])
+  );
+  if (shotSeconds) {
+    inputs.push("-loop", "1", "-t", String(shotSeconds), "-i", "site.png");
+  }
+  const args = inputs.concat([
     "-filter_complex",
     videoFilter.concat(audioFilter).join(";"),
     "-map",
@@ -1078,6 +1096,7 @@ ${hashtags}
     JSON.stringify(
       {
         total: round(layout.total),
+        siteShot: { seconds: round(shotSeconds) },
         intro: { seconds: round(layout.introOut), heldFor: round(layout.introHold) },
         working: { seconds: round(layout.workOut), speed: round(layout.workSpeed) },
         answer: {
@@ -1099,6 +1118,9 @@ ${hashtags}
   console.log(
     `Intro ${round(layout.introOut)}s | working ${round(layout.workOut)}s at ${round(layout.workSpeed)}x | answer and outro ${round(layout.answerOut)}s at ${round(layout.answerSpeed)}x`
   );
+  if (shotSeconds) {
+    console.log(`Site shot ${round(shotSeconds)}s at the start`);
+  }
   console.log(`Wrote ${(0, import_path7.join)(folder, "video.mp4")} (${round(layout.total)}s) and caption.txt`);
   return (0, import_path7.join)(folder, "video.mp4");
 }
@@ -1114,6 +1136,43 @@ var timestamp = () => (/* @__PURE__ */ new Date()).toISOString().replace(/[-:]/g
 var DEFAULT_HIDE_DEV_CSS = `
   nextjs-portal, button[aria-label*="React Query"], .tsqd-open-btn-container { display: none !important; }
 `;
+var desktopUserAgent = (version) => {
+  const platform = process.platform === "win32" ? "Windows NT 10.0; Win64; x64" : process.platform === "darwin" ? "Macintosh; Intel Mac OS X 10_15_7" : "X11; Linux x86_64";
+  const major = version.split(".")[0] || "140";
+  return `Mozilla/5.0 (${platform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${major}.0.0.0 Safari/537.36`;
+};
+var captureSiteShot = async (browser, domain, outDir, shotSize) => {
+  const shotPath = (0, import_path8.join)(outDir, "site.png");
+  for (const url of [`https://${domain}`, `http://${domain}`]) {
+    const context = await browser.newContext({
+      viewport: shotSize,
+      deviceScaleFactor: 1,
+      colorScheme: "light",
+      locale: "en-MY",
+      userAgent: desktopUserAgent(browser.version())
+    });
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, "webdriver", { get: () => void 0 });
+    });
+    try {
+      const page = await context.newPage();
+      const response = await page.goto(url, { waitUntil: "load", timeout: 3e4 });
+      if (!response || response.status() >= 400) {
+        throw new Error(`HTTP ${response ? response.status() : "no response"}`);
+      }
+      await sleep2(1500);
+      await page.screenshot({ path: shotPath, animations: "disabled" });
+      console.log(`  captured the site shot from ${url}`);
+      return;
+    } catch (err) {
+      console.warn(`  could not capture the site shot from ${url}: ${err.message}`);
+    } finally {
+      await context.close().catch(() => {
+      });
+    }
+  }
+  console.warn("  no site shot captured; the video will start on the app.");
+};
 async function runRecord(config, rawTarget, options = {}) {
   if (!rawTarget) {
     throw new Error("Usage: demo-video record <target> [--keep] [--headed]");
@@ -1156,6 +1215,9 @@ async function runRecord(config, rawTarget, options = {}) {
   const setupResult = await config.recorder.setup(setupContext, domainName);
   const targetUrl = setupResult.url;
   const setupData = setupResult.data;
+  if (config.app.siteShot > 0) {
+    await captureSiteShot(browser, domainName, outDir, videoSize);
+  }
   if (config.auth?.refresh) {
     await config.auth.refresh(setupContext);
   }

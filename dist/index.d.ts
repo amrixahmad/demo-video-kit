@@ -57,6 +57,11 @@ interface AppConfig {
      * Additional CSS injected into the page to hide dev tools / overlays on camera.
      */
     hideDevCss?: string;
+    /**
+     * Seconds of the target site itself shown before the app appears (default 0, off).
+     * Captured off-camera from the target domain as `site.png`.
+     */
+    siteShot?: number;
 }
 interface AuthConfig {
     /**
@@ -144,6 +149,7 @@ interface ScriptConfig<TSlots = any> {
 interface StyleConfig {
     brandAss?: string;
     captionBoxAss?: string;
+    hookBoxAss?: string;
     hookFont?: string;
     hookFontSize?: number;
     captionFont?: string;
@@ -156,6 +162,7 @@ interface StyleConfig {
 interface ResolvedStyleConfig {
     brandAss?: string;
     captionBoxAss: string;
+    hookBoxAss: string;
     hookFont: string;
     hookFontSize: number;
     captionFont: string;

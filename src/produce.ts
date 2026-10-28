@@ -208,22 +208,42 @@ export async function runProduce(
     voiced,
   });
 
+  // Cold open: the requested still of the target site covers the first seconds of the app,
+  // which are the idle page after load. Nothing shifts: voice, captions and length stay put.
+  const shotSeconds =
+    config.app.siteShot > 0 && existsSync(join(folder, 'site.png'))
+      ? Math.min(config.app.siteShot, sent)
+      : 0;
+
   // Build ASS subtitles
   const assContent = buildAss(layout.placed, script.onScreen, layout.introOut, config.style);
   writeFileSync(join(folder, 'captions.ass'), assContent);
 
+  // Segments are scaled to the output size before concat so every link matches (and so a
+  // still, whose size has nothing to do with the recording, can join them).
+  const upscale = `scale=${config.style.videoWidth}:${config.style.videoHeight}:flags=lanczos,setsar=1`;
+
   const videoFilter = [
-    `[0:v]trim=start=0:end=${sent},setpts=PTS-STARTPTS,fps=30,setsar=1,tpad=stop_mode=clone:stop_duration=${round(layout.introHold)}[intro]`,
-    `[0:v]trim=start=${sent}:end=${answerDone},setpts=(PTS-STARTPTS)/${round(layout.workSpeed)},fps=30,setsar=1[work]`,
+    `[0:v]trim=start=${shotSeconds}:end=${sent},setpts=PTS-STARTPTS,fps=30,setsar=1,tpad=stop_mode=clone:stop_duration=${round(layout.introHold)},${upscale}[intro]`,
+    `[0:v]trim=start=${sent}:end=${answerDone},setpts=(PTS-STARTPTS)/${round(layout.workSpeed)},fps=30,setsar=1,${upscale}[work]`,
     [
       `[0:v]trim=start=${answerDone}:end=${end},setpts=(PTS-STARTPTS)/${round(layout.answerSpeed)},fps=30,setsar=1,`,
-      `tpad=stop_mode=clone:stop_duration=${round(layout.answerHold)}[answer]`,
-    ].join(''),
-    [
-      '[intro][work][answer]concat=n=3:v=1:a=0,',
-      `scale=${config.style.videoWidth}:${config.style.videoHeight}:flags=lanczos,unsharp=5:5:0.6,ass=captions.ass[v]`,
+      `tpad=stop_mode=clone:stop_duration=${round(layout.answerHold)},${upscale}[answer]`,
     ].join(''),
   ];
+
+  // With a site still, the inputs are: raw.webm, one per voice line, then the still.
+  if (shotSeconds) {
+    const shotInput = 1 + layout.placed.length;
+    videoFilter.unshift(
+      `[${shotInput}:v]${upscale},fps=30,trim=duration=${shotSeconds},setpts=PTS-STARTPTS[shot]`
+    );
+    videoFilter.push(
+      '[shot][intro][work][answer]concat=n=4:v=1:a=0,unsharp=5:5:0.6,ass=captions.ass[v]'
+    );
+  } else {
+    videoFilter.push('[intro][work][answer]concat=n=3:v=1:a=0,unsharp=5:5:0.6,ass=captions.ass[v]');
+  }
 
   // Audio filter with 10ms fades
   const audioFilter = layout.placed.map(
@@ -236,8 +256,13 @@ export async function runProduce(
   );
 
   // Lesson #8: ffmpeg's ass filter runs with recording folder as working directory so path needs no escaping on Windows.
-  const args = ['-v', 'error', '-y', '-i', 'raw.webm']
-    .concat(...layout.placed.map((line) => ['-i', line.file]))
+  const inputs = ['-v', 'error', '-y', '-i', 'raw.webm'].concat(
+    ...layout.placed.map((line) => ['-i', line.file])
+  );
+  if (shotSeconds) {
+    inputs.push('-loop', '1', '-t', String(shotSeconds), '-i', 'site.png');
+  }
+  const args = inputs
     .concat([
       '-filter_complex',
       videoFilter.concat(audioFilter).join(';'),
@@ -275,6 +300,7 @@ export async function runProduce(
     JSON.stringify(
       {
         total: round(layout.total),
+        siteShot: { seconds: round(shotSeconds) },
         intro: { seconds: round(layout.introOut), heldFor: round(layout.introHold) },
         working: { seconds: round(layout.workOut), speed: round(layout.workSpeed) },
         answer: {
@@ -297,6 +323,9 @@ export async function runProduce(
   console.log(
     `Intro ${round(layout.introOut)}s | working ${round(layout.workOut)}s at ${round(layout.workSpeed)}x | answer and outro ${round(layout.answerOut)}s at ${round(layout.answerSpeed)}x`
   );
+  if (shotSeconds) {
+    console.log(`Site shot ${round(shotSeconds)}s at the start`);
+  }
   console.log(`Wrote ${join(folder, 'video.mp4')} (${round(layout.total)}s) and caption.txt`);
 
   return join(folder, 'video.mp4');
